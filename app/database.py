@@ -146,6 +146,37 @@ async def setup_database(initial_users: dict = None):
             connection.close()
             logger.info("Database connection closed")
 
+async def create_user(username: str, password: str, email: str, first_name: str, last_name: str, city: str, state: str, country: str):
+    """Creates user and session tables and populates initial user data if provided."""
+    connection = None
+    cursor = None
+
+    try:
+        # Get database connection
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Insert New User
+        try:
+                insert_query = "INSERT INTO users (first_name, last_name, email, username, password, city, state, country) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                cursor.execute(insert_query, (first_name, last_name, email, username, password, city, state, country))
+                connection.commit()
+                logger.info(f"Inserted {username} initial users")
+        except Error as e:
+                logger.error(f"Error inserting initial users: {e}")
+                raise    
+
+    except Exception as e:
+        logger.error(f"Database setup failed: {e}")
+        raise
+
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+            logger.info("Database connection closed")
+
 async def get_user_by_username(username: str) -> Optional[dict]:
     """Retrieve user from database by username."""
     connection = None

@@ -13,6 +13,7 @@ from database import (
     create_session,
     get_session,
     delete_session,
+    create_user
 )
 
 # TODO: 1. create your own user
@@ -34,21 +35,17 @@ async def lifespan(app: FastAPI):
     finally:
         print("Shutdown completed")
 
-
 # Create FastAPI app with lifespan
 app = FastAPI(lifespan=lifespan)
-
 
 # Static file helpers
 def read_html(file_path: str) -> str:
     with open(file_path, "r") as f:
         return f.read()
 
-
 def get_error_html(username: str) -> str:
     error_html = read_html("./static/error.html")
     return error_html.replace("{username}", username)
-
 
 @app.get("/")
 async def root():
@@ -56,6 +53,34 @@ async def root():
     # TODO: 2. Implement this route
     return RedirectResponse("/login", 307)
 
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_page():
+    """Show signup page"""
+    return read_html("./static/signup.html")
+
+@app.post("/signup")
+async def signup(request: Request):
+    """Create a new user if valid"""
+    data = await request.form()
+    username = data.get("username")
+    password = data.get("password")
+    email = data.get("email")
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
+    city = data.get("city")
+    state = data.get("state")
+    country = data.get("country")
+
+    # Check if username already exists
+    existing_user = await get_user_by_username(username)
+    if existing_user:
+        return HTMLResponse("Username already exists", status_code=400)
+
+    # Create new user
+    await create_user(username, password, email, first_name, last_name, city, state, country)
+
+    # Redirect to login page
+    return RedirectResponse("/login", status_code=302)
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -73,7 +98,6 @@ async def login_page(request: Request):
                 return RedirectResponse(f"/user/{user['username']}", status_code=302)
     return read_html("./static/login.html")
     
-
 @app.post("/login")
 async def login(request: Request):
     """Validate credentials and create a new session if valid"""
@@ -114,8 +138,6 @@ async def login(request: Request):
         return response
     else:
         return RedirectResponse("/login")
-    
-
 
 @app.post("/logout")
 async def logout(request: Request):
@@ -131,7 +153,6 @@ async def logout(request: Request):
     response.delete_cookie(key="sessionId")
 
     return response
-
 
 @app.get("/user/{username}", response_class=HTMLResponse)
 async def user_page(username: str, request: Request):
@@ -172,7 +193,6 @@ async def user_page(username: str, request: Request):
 
     # If all valid, show profile page
     return HTMLResponse(read_html("./static/profile.html").replace("{username}", username))
-
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="localhost", port=8000, reload=True)
