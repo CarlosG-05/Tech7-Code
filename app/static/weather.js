@@ -1,0 +1,7 @@
+function getWeatherData () {
+
+}
+
+function getLocation () {
+
+}

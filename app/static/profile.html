@@ -1,27 +1,114 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src=""></script>
     <title>Welcome</title>
     <style>
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px;
+      /* General Styling */
+      body {
+          font-family: Arial, sans-serif;
+          background-color: #1e1e2e;
+          color: white;
+          margin: 0;
+          padding: 0;
       }
-      .logout-form {
-        margin: 0;
+      h1, h2, h3 {
+          text-align: center;
+      }
+
+      /* Header Section */
+      .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: #282a36;
+          padding: 15px 20px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       }
       .logout-button {
-        padding: 8px 16px;
-        background-color: #f44336;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
+          background: #ff5555;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          font-size: 16px;
+          cursor: pointer;
+          border-radius: 5px;
+          transition: 0.3s;
       }
       .logout-button:hover {
-        background-color: #d32f2f;
+          background: #ff7777;
+      }
+
+      /* Weather Section */
+      #weatherapi {
+          background: #3b3f54;
+          padding: 20px;
+          border-radius: 10px;
+          width: 80%;
+          margin: 20px auto;
+          text-align: center;
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+      }
+      .weather-cards {
+          display: flex;
+          justify-content: center;
+          gap: 15px;
+          margin-top: 15px;
+      }
+      .card {
+          background: #282a36;
+          padding: 15px;
+          border-radius: 10px;
+          width: 150px;
+          text-align: center;
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+          transition: 0.3s;
+      }
+      .card:hover {
+          transform: translateY(-5px);
+      }
+
+      /* Stock Section */
+      .container {
+          background: #3b3f54;
+          padding: 20px;
+          border-radius: 10px;
+          width: 80%;
+          margin: 20px auto;
+          text-align: center;
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+      }
+      .chart-container {
+          width: 100%;
+          max-width: 800px;
+          height: 400px;
+          margin: auto;
+      }
+      .stock-prices {
+          display: flex;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 20px;
+      }
+      .stock-card {
+          background: #282a36;
+          padding: 10px 15px;
+          border-radius: 8px;
+          text-align: center;
+          min-width: 120px;
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      }
+      .stock-price {
+          font-size: 18px;
+          font-weight: bold;
+      }
+      .positive {
+          color: #00ff00;
+      }
+      .negative {
+          color: #ff5555;
       }
     </style>
   </head>
@@ -32,17 +119,163 @@
         <button class="logout-button" type="submit">Logout</button>
       </form>
     </div>
-  </body>
-  <script>
-    window.onload = function () {
-      // Get the username from the URL path
-      const path = window.location.pathname;
-      const username = path.split('/user/')[1];
+    
+    <div id="weatherapi">
+        <div class="header">
+            <h1 id="locations">New York</h1>
+            <p id="date">February 14, 2025</p>
+        </div>
 
-      // Update the welcome message
-      document.getElementById(
-        'welcome-message'
-      ).textContent = `Welcome, {username}!`;
+        <div class="main-info">
+            <div class="temperature">
+                <h2 id="conditions">Sunny</h2>
+            </div>
+        </div>
+
+        <div class="weather-cards">
+            <div class="card">
+                <h3>Temperature</h3>
+                <p id="temp">15°C</p>
+            </div>
+
+            <div class="card">
+                <h3>Humidity</h3>
+                <p id="humidity">60%</p>
+            </div>
+
+            <div class="card">
+                <h3>Rain</h3>
+                <p id="rain">No Rain</p>
+            </div>
+
+            <div class="card">
+                <h3>Wind</h3>
+                <p id="wind">5 km/h</p>
+            </div>
+        </div> 
+    </div>
+
+    <div class="container">
+      <h1>Real-time Stock Market Dashboard</h1>
+      <div class="chart-container">
+          <canvas id="stockChart"></canvas>
+      </div>
+      <div class="stock-prices" id="stockPrices"></div>
+    </div>
+  </body>
+  
+  <script>
+    let username;
+    let userCity = "National City";
+    let userState = "CA";
+    let userCountry = "US";
+    let APIkey = "d1558b3b04f23e7b02160135fd44853a";
+
+    window.onload = async function () {
+        await fetchUserDetails();
+        getWeatherInfo();
+        document.getElementById('welcome-message').textContent = `Welcome, {username}!`;
     };
+      
+    const maxDataPoints = 50;
+    const ctx = document.getElementById('stockChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'TECH', data: [], borderColor: '#2196f3', tension: 0.4 },
+                { label: 'ENERGY', data: [], borderColor: '#f44336', tension: 0.4 },
+                { label: 'HEALTH', data: [], borderColor: '#4caf50', tension: 0.4 },
+                { label: 'FINANCE', data: [], borderColor: '#ff9800', tension: 0.4 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: 'Stock Prices Over Time' }
+            },
+            scales: { y: { beginAtZero: false } }
+        }
+    });
+
+    const ws = new WebSocket('/ws');
+    let previousPrices = {};
+    ws.onmessage = (event) => {
+        data = JSON.parse(event.data);
+        updateChartData(data);
+        updatePriceCards(data, previousPrices);
+        previousPrices = { ...data.stocks };
+    };
+    ws.onclose = () => console.log("Connection Closed");
+    ws.onerror = (error) => console.error("WebSocket error:", error);
+
+    async function fetchUserDetails() {
+        try {
+            const response = await fetch('/user/details', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user details');
+            }
+
+            const weatherData = await response.json();
+            console.log('User Details', weatherData);
+            username = weatherData.username;
+            //userCity = weatherData.city;
+            //userState = weatherData.state;
+            //userCountry = weatherData.country;
+            console.log(username, userCity, userState, userCountry);
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+        }
+    }
+
+    function getWeatherInfo () {
+        console.log(userCity, userState, userCountry);
+        let formatedCity = userCity.replace("/ /g", "%20");
+        console.log(formatedCity);
+        let formatedState = userState.replace("/ /g", "%20");
+        let formatedCountry = userCountry.replace("/ /g", "%20");
+
+        fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${formatedCity},${formatedState},${formatedCountry}&limit=10&appid=${APIkey}`)
+        .then(response => response.json())
+        .then(data => {
+            let lat = data[0].lat;
+            let lon = data[0].lon;
+            console.log(lat, lon);
+            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${APIkey}`)
+            .then(response => response.json())
+            .then(data => {console.log(data)});
+        });
+    }
+
+    function displayStockCard(stock, price, change) {
+        const stockPricesDiv = document.getElementById('stockPrices');
+        const card = document.createElement('div');
+        card.className = 'stock-card';
+        card.innerHTML = `<div>${stock}</div><div class="stock-price">$${price.toFixed(2)}</div>
+            <div class="${change >= 0 ? 'positive' : 'negative'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}%</div>`;
+        stockPricesDiv.appendChild(card);
+    }
+
+    function updateChartData(data) {
+        chart.data.labels.push(data.timestamp);
+        if (chart.data.labels.length > maxDataPoints) chart.data.labels.shift();
+        Object.entries(data.stocks).forEach(([stock, price], index) => chart.data.datasets[index].data.push(price));
+        chart.update();
+    }
+
+    function updatePriceCards(data, previousPrices) {
+        document.getElementById('stockPrices').innerHTML = '';
+        Object.entries(data.stocks).forEach(([stock, price]) => {
+            const change = previousPrices[stock] ? ((price - previousPrices[stock]) / previousPrices[stock] * 100).toFixed(2) : '0.00';
+            displayStockCard(stock, price, change);
+        });
+    }
   </script>
 </html>

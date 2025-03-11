@@ -1,6 +1,10 @@
 fastapi
-uvicorn
 python-multipart
 uuid
 mysql-connector-python
 python-dotenv
+paho-mqtt
+matplotlib
+numpy
+uvicorn[standard]
+websockets

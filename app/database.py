@@ -95,6 +95,14 @@ async def setup_database(initial_users: dict = None):
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """,
+        "devices": """
+            CREATE TABLE devices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                devicename VARCHAR(255) NOT NULL,
+                owner VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
     }
 
     try:
@@ -103,7 +111,7 @@ async def setup_database(initial_users: dict = None):
         cursor = connection.cursor()
 
         # Drop and recreate tables one by one
-        for table_name in ["sessions", "users"]:
+        for table_name in ["sessions", "users", "devices"]:
             # Drop table if exists
             logger.info(f"Dropping table {table_name} if exists...")
             cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
@@ -165,6 +173,37 @@ async def create_user(username: str, password: str, email: str, first_name: str,
                 logger.info(f"Inserted {username} initial users")
         except Error as e:
                 logger.error(f"Error inserting initial users: {e}")
+                raise    
+
+    except Exception as e:
+        logger.error(f"Database setup failed: {e}")
+        raise
+
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+            logger.info("Database connection closed")
+
+async def add_device(devicename: str, owner: str):
+    """Creates user and session tables and populates initial user data if provided."""
+    connection = None
+    cursor = None
+
+    try:
+        # Get database connection
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Insert New User
+        try:
+                insert_query = "INSERT INTO devices (devicename, owner) VALUES (%s, %s)"
+                cursor.execute(insert_query, (devicename, owner))
+                connection.commit()
+                logger.info(f"Inserted {devicename} device")
+        except Error as e:
+                logger.error(f"Error inserting device: {e}")
                 raise    
 
     except Exception as e:

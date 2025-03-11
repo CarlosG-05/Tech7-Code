@@ -1,9 +1,12 @@
 import uvicorn
-from fastapi import FastAPI, Request, Response, HTTPException, status
+from fastapi import FastAPI, Request, Response, HTTPException, status, WebSocket
 from fastapi.responses import HTMLResponse, RedirectResponse
 import uuid
 import json
+import asyncio
 from typing import Dict
+import random
+from datetime import datetime
 from contextlib import asynccontextmanager
 
 from database import (
@@ -95,7 +98,7 @@ async def login_page(request: Request):
             user = await get_user_by_id(session["user_id"])
     # Check if session username matches URL username
             if user['username']:
-                return RedirectResponse(f"/user/{user['username']}", status_code=302)
+                return RedirectResponse("/dashboard", status_code=302)
     return read_html("./static/login.html")
     
 @app.post("/login")
@@ -132,11 +135,11 @@ async def login(request: Request):
         uniqueId = str(uuid.uuid4())
         print(uniqueId)
         await create_session(userInfo['id'], uniqueId, dataUser)
-        response = RedirectResponse(f"/user/{username}", status_code=302)
+        response = RedirectResponse("/dashboard", status_code=302)
         response.set_cookie(key='sessionId',value=uniqueId)
         return response
     else:
-        return RedirectResponse("/login")
+        return RedirectResponse("/login", status_code=302)
 
 @app.post("/logout")
 async def logout(request: Request):
@@ -153,8 +156,8 @@ async def logout(request: Request):
 
     return response
 
-@app.get("/user/{username}", response_class=HTMLResponse)
-async def user_page(username: str, request: Request):
+@app.get("/dashboard", response_class=HTMLResponse)
+async def user_page(request: Request):
     """Show user profile if authenticated, error if not"""
     # TODO: 11. Get sessionId from cookies
 
@@ -187,11 +190,81 @@ async def user_page(username: str, request: Request):
     print(user["username"])
 
     # Check if session username matches URL username
-    if user['username'] != username:
-        return HTMLResponse(get_error_html(username), status_code=403)
+    if not user['username']:
+        delete_session(session_id)
+        return HTMLResponse(get_error_html(user['username']), status_code=403)
 
     # If all valid, show profile page
-    return HTMLResponse(read_html("./static/profile.html").replace("{username}", username))
+    return HTMLResponse(read_html("./static/profile.html").replace("{username}", user['username']))
+
+@app.post("/dashboard/data")
+async def user_data(request: Request):
+    """Return user data as JSON""" 
+    data = await request.json()
+    temp = data.get("temperature")
+    pressure = data.get("pressure")
+    print(data)
+    return {"status": "success", "data": data}
+
+@app.get("/user/details")
+async def get_user_details(request: Request):
+    """Fetch user details based on session ID."""
+    session_id = request.cookies.get("sessionId")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    user = await get_user_by_id(session["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "username": user["username"],
+        "city": user["city"],
+        "state": user["state"],
+        "country": user["country"]
+    }
+
+stocks = {
+    "TECH": 150.0,
+    "ENERGY": 75.0,
+    "HEALTH": 200.0,
+    "FINANCE": 100.0
+} 
+
+def get_new_stock_prices():
+    global stocks
+    # Simulate market movements
+    for stock in stocks:
+        change = random.uniform(-4, 4)
+        stocks[stock] += change
+        stocks[stock] = max(10, stocks[stock])
+    
+    data = {
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
+        "stocks": stocks
+    }
+    return data
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    # accept the websocket connection
+    await websocket.accept();
+
+    try:
+        while True:
+            data = get_new_stock_prices();
+            await websocket.send_json(data)
+            await asyncio.sleep(1)
+
+    except Exception as e:
+        print(f"Error: {e}")
+    
+    finally:
+        await websocket.close();
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="localhost", port=8000, reload=True)
