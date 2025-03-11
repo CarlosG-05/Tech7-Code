@@ -47,11 +47,11 @@ def get_error_html(username: str) -> str:
     error_html = read_html("./static/error.html")
     return error_html.replace("{username}", username)
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
     """Redirect users to /login"""
     # TODO: 2. Implement this route
-    return RedirectResponse("/login", 307)
+    return read_html("./static/index.html")
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
