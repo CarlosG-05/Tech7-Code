@@ -123,16 +123,15 @@ async def login(request: Request):
 
     if userInfo == None:
         print(userInfo)
-        return RedirectResponse("/login")
+        return RedirectResponse("/login", status_code=302)
     
     dataUser = userInfo['username']
     dataPass = userInfo['password']
 
     if (dataUser == username) and (dataPass == password):
         uniqueId = str(uuid.uuid4())
-        print(uniqueId);
-        print("here5")
-        await create_session(userInfo['id'], uniqueId)
+        print(uniqueId)
+        await create_session(userInfo['id'], uniqueId, dataUser)
         response = RedirectResponse(f"/user/{username}", status_code=302)
         response.set_cookie(key='sessionId',value=uniqueId)
         return response

@@ -90,6 +90,7 @@ async def setup_database(initial_users: dict = None):
             CREATE TABLE sessions (
                 id VARCHAR(36) PRIMARY KEY,
                 user_id INT NOT NULL,
+                username VARCHAR(255) NOT NULL UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
@@ -215,7 +216,7 @@ async def get_user_by_id(user_id: int) -> Optional[dict]:
         if connection and connection.is_connected():
             connection.close()
 
-async def create_session(user_id: int, session_id: str) -> bool:
+async def create_session(user_id: int, session_id: str, username: str) -> bool:
     """Create a new session in the database."""
     connection = None
     cursor = None
@@ -223,7 +224,7 @@ async def create_session(user_id: int, session_id: str) -> bool:
         connection = get_db_connection()
         cursor = connection.cursor()
         cursor.execute(
-            "INSERT INTO sessions (id, user_id) VALUES (%s, %s)", (session_id, user_id)
+            "INSERT INTO sessions (id, user_id, username) VALUES (%s, %s, %s)", (session_id, user_id, username)
         )
         connection.commit()
         return True
