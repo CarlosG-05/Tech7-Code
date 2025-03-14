@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 class DatabaseConnectionError(Exception):
     """Custom exception for database connection failures"""
-
     pass
 
 def get_db_connection(
@@ -102,6 +101,23 @@ async def setup_database(initial_users: dict = None):
                 owner VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """,
+        "sensor_data": """
+            CREATE TABLE sensor_data (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                devicename VARCHAR(255) NOT NULL,
+                temperature FLOAT NOT NULL,
+                pressure FLOAT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """,
+        "clothes": """
+            CREATE TABLE clothes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user VARCHAR(255) NOT NULL,
+                type VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         """
     }
 
@@ -111,7 +127,7 @@ async def setup_database(initial_users: dict = None):
         cursor = connection.cursor()
 
         # Drop and recreate tables one by one
-        for table_name in ["sessions", "users", "devices"]:
+        for table_name in ["sessions", "users", "devices", "sensor_data", "clothes"]:
             # Drop table if exists
             logger.info(f"Dropping table {table_name} if exists...")
             cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
@@ -187,6 +203,31 @@ async def create_user(username: str, password: str, email: str, first_name: str,
             logger.info("Database connection closed")
 
 async def add_device(devicename: str, owner: str):
+    """Add a new device to the database."""
+    connection = None
+    cursor = None
+
+    try:
+        # Get database connection
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Insert New Device
+        insert_query = "INSERT INTO devices (devicename, owner) VALUES (%s, %s)"
+        cursor.execute(insert_query, (devicename, owner))
+        connection.commit()
+        logger.info(f"Inserted {devicename} device")
+    except Error as e:
+        logger.error(f"Error inserting device: {e}")
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+            logger.info("Database connection closed")
+
+async def add_sensor_data(devicename: str, temperature: float, pressure: float):
     """Creates user and session tables and populates initial user data if provided."""
     connection = None
     cursor = None
@@ -198,12 +239,12 @@ async def add_device(devicename: str, owner: str):
 
         # Insert New User
         try:
-                insert_query = "INSERT INTO devices (devicename, owner) VALUES (%s, %s)"
-                cursor.execute(insert_query, (devicename, owner))
+                insert_query = "INSERT INTO sensor_data (devicename, temperature, pressure) VALUES (%s, %s, %s)"
+                cursor.execute(insert_query, (devicename, temperature, pressure))
                 connection.commit()
-                logger.info(f"Inserted {devicename} device")
+                logger.info(f"Inserted sensor data for {devicename}")
         except Error as e:
-                logger.error(f"Error inserting device: {e}")
+                logger.error(f"Error inserting sensor data: {e}")
                 raise    
 
     except Exception as e:
@@ -216,6 +257,45 @@ async def add_device(devicename: str, owner: str):
         if connection and connection.is_connected():
             connection.close()
             logger.info("Database connection closed")
+
+async def get_weather_by_device(devicename: str):
+    """Retrieve the latest sensor data for a given device name."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT * FROM sensor_data 
+            WHERE devicename = %s 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        """, (devicename,))
+        return cursor.fetchone()
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+
+async def get_devices_by_owner(owner: str):
+    """Retrieve the device names for a given owner."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT devicename FROM devices 
+            WHERE owner = %s 
+        """, (owner,))
+        result = cursor.fetchall()
+        return [row['devicename'] for row in result]
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
 
 async def get_user_by_username(username: str) -> Optional[dict]:
     """Retrieve user from database by username."""
@@ -295,6 +375,73 @@ async def get_session(session_id: str) -> Optional[dict]:
         if connection and connection.is_connected():
             connection.close()
 
+async def get_user_by_session(session_id: str) -> Optional[dict]:
+    """Retrieve user from database by session ID."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT u.*
+            FROM users u
+            JOIN sessions s ON u.id = s.user_id
+            WHERE s.id = %s
+        """,
+            (session_id,),
+        )
+        return cursor.fetchone()
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+
+async def add_clothes(user: str, type: str):
+    """Add a new clothes to the database."""
+    connection = None
+    cursor = None
+
+    try:
+        # Get database connection
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Insert New Clothes
+        insert_query = "INSERT INTO clothes (user, type) VALUES (%s, %s)"
+        cursor.execute(insert_query, (user, type))
+        connection.commit()
+        logger.info(f"Inserted {type} clothes")
+    except Error as e:
+        logger.error(f"Error inserting clothes: {e}")
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+            logger.info("Database connection closed")
+
+async def get_all_clothes_by_user(user: str):
+    """Retrieve the clothes for a given user."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT type FROM clothes 
+            WHERE user = %s 
+        """, (user,))
+        result = cursor.fetchall()
+        return [row['type'] for row in result]
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+            
 async def delete_session(session_id: str) -> bool:
     """Delete a session from the database."""
     connection = None

@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, Request, Response, HTTPException, status, WebSocket
 from fastapi.responses import HTMLResponse, RedirectResponse
+import requests
 import uuid
 import json
 import asyncio
@@ -8,6 +9,7 @@ from typing import Dict
 import random
 from datetime import datetime
 from contextlib import asynccontextmanager
+import httpx
 
 from database import (
     setup_database,
@@ -16,7 +18,14 @@ from database import (
     create_session,
     get_session,
     delete_session,
-    create_user
+    create_user,
+    add_sensor_data,
+    get_weather_by_device,
+    add_device,
+    get_user_by_session,
+    get_devices_by_owner,
+    add_clothes,
+    get_all_clothes_by_user
 )
 
 # TODO: 1. create your own user
@@ -203,8 +212,14 @@ async def user_data(request: Request):
     data = await request.json()
     temp = data.get("temperature")
     pressure = data.get("pressure")
-    print(data)
+    devicename = data.get("devicename")
+    await add_sensor_data(devicename, temp, pressure)
     return {"status": "success", "data": data}
+
+@app.get("/wardrobe", response_class=HTMLResponse)
+async def wardrobe_page(request: Request):
+    """Show wardrobe page"""
+    return read_html("./static/wardrobe.html")
 
 @app.get("/user/details")
 async def get_user_details(request: Request):
@@ -228,35 +243,150 @@ async def get_user_details(request: Request):
         "country": user["country"]
     }
 
+@app.post("/adddevice")
+async def add(request: Request):
+    """Add a new device to the database"""
+    data = await request.form()
+    devicename = data.get("device-name")
+
+    session_id = request.cookies.get("sessionId")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    user = await get_user_by_id(session["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    owner = user["username"]
+
+    await add_device(devicename, owner)
+
+    return RedirectResponse("/dashboard", status_code=302)
+
+@app.post("/wardrobe")
+async def wardrobe(request: Request):
+    """Add a new device to the database"""
+    data = await request.form()
+    devicename = data.get("device-name")
+
+    session_id = request.cookies.get("sessionId")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    user = await get_user_by_id(session["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    owner = user["username"]
+
+    await add_device(devicename, owner)
+
+    return RedirectResponse("/dashboard", status_code=302)
+
+@app.post("/LLM")
+async def LLM(request: Request):
+    """Add a new device to the database"""
+    data = await request.json()
+    print(data)
+
+    API_URL = 'https://ece140-wi25-api.frosty-sky-f43d.workers.dev/api/v1/ai/complete'
+    headers = {
+        'email': 'c5guerrero@ucsd.edu',
+        'pid': 'A17979927',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(API_URL, headers=headers, json=data)
+
+    return response.json()
+
+@app.get("/getclothes/{username}")
+async def getClothes(username: str):
+    """Get all clothes for a user"""
+
+    clothes = await get_all_clothes_by_user(username)
+
+    return clothes
+
+@app.post("/addclothes")
+async def clothes(request: Request):
+    """Add a new clothes to the database"""
+    data = await request.form()
+    clothes = data.get("clothes-name")
+
+    print(clothes)
+
+    session_id = request.cookies.get("sessionId")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    user = await get_user_by_id(session["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    owner = user["username"]
+
+    print(owner)
+
+    await add_clothes(clothes, owner)
+
+    return RedirectResponse("/wardrobe", status_code=302)
+
 stocks = {
-    "TECH": 150.0,
-    "ENERGY": 75.0,
-    "HEALTH": 200.0,
-    "FINANCE": 100.0
+    "Temperature": 75.0,
 } 
 
-def get_new_stock_prices():
+async def get_new_stock_prices(device_name:str):
     global stocks
-    # Simulate market movements
-    for stock in stocks:
-        change = random.uniform(-4, 4)
-        stocks[stock] += change
-        stocks[stock] = max(10, stocks[stock])
-    
+
+    weather = await get_weather_by_device(device_name)
+    temp = weather.get("temperature")
+    print(temp)
+
+    stocks = {
+            "ENERGY": temp
+        }
+
     data = {
         "timestamp": datetime.now().strftime("%H:%M:%S"),
         "stocks": stocks
     }
     return data
+    
+    return
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # accept the websocket connection
+    #find device name
     await websocket.accept();
+    data = await websocket.receive_text()
+    data = data.split("=")[1]
+    print(data)
 
+    data = await get_user_by_session(data)
+    username = data['username']
+    print(username)
+    device = await get_devices_by_owner(username)
+    print(device[0])
+    
     try:
         while True:
-            data = get_new_stock_prices();
+            data = await get_new_stock_prices(device[0]);
             await websocket.send_json(data)
             await asyncio.sleep(1)
 

@@ -1,7 +1,0 @@
-function getWeatherData () {
-
-}
-
-function getLocation () {
-
-}

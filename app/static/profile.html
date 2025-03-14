@@ -2,7 +2,7 @@
 <html>
   <head>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
-    <script src=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <title>Welcome</title>
     <style>
       /* General Styling */
@@ -110,6 +110,37 @@
       .negative {
           color: #ff5555;
       }
+
+        /* Add Device Section */
+        .form-container {
+          background: #3b3f54;
+          padding: 20px;
+          border-radius: 10px;
+          width: 80%;
+          margin: 20px auto;
+          text-align: center;
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        .form-container input[type="text"] {
+          width: 80%;
+          padding: 10px;
+          margin: 10px 0;
+          border: none;
+          border-radius: 5px;
+        }
+        .form-container button {
+          background: #4caf50;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          font-size: 16px;
+          cursor: pointer;
+          border-radius: 5px;
+          transition: 0.3s;
+        }
+        .form-container button:hover {
+          background: #66bb6a;
+        }
     </style>
   </head>
   <body>
@@ -122,8 +153,8 @@
     
     <div id="weatherapi">
         <div class="header">
-            <h1 id="locations">New York</h1>
-            <p id="date">February 14, 2025</p>
+            <h1 id="locations"></h1>
+            <p id="date"></p>
         </div>
 
         <div class="main-info">
@@ -135,12 +166,12 @@
         <div class="weather-cards">
             <div class="card">
                 <h3>Temperature</h3>
-                <p id="temp">15°C</p>
+                <p id="temp">°C</p>
             </div>
 
             <div class="card">
                 <h3>Humidity</h3>
-                <p id="humidity">60%</p>
+                <p id="humidity">%</p>
             </div>
 
             <div class="card">
@@ -150,44 +181,66 @@
 
             <div class="card">
                 <h3>Wind</h3>
-                <p id="wind">5 km/h</p>
+                <p id="wind">km/h</p>
             </div>
         </div> 
     </div>
 
     <div class="container">
-      <h1>Real-time Stock Market Dashboard</h1>
+      <h1>Real-time Temperature Sensor Dashboard</h1>
       <div class="chart-container">
           <canvas id="stockChart"></canvas>
       </div>
       <div class="stock-prices" id="stockPrices"></div>
     </div>
+
+    <div id="aiSection" class="form-container">
+        <h2>What Should You Wear?</h2>
+        <button id = "wardrobebutton" onclick="apiClothes()">Find Out</button>
+        <p id="airesponse"></p>
+    </div>
+
+    <div id="yourWardrobe" class="form-container">
+        <form action="/wardrobe" method="GET">
+            <button type="submit" id="addclothes">Go To Your Wardrobe</button>
+        </form>
+    </div>
+
+    <div id="add-device" class="form-container">
+        <h2>Add Device</h2>
+        <form action="/adddevice" method="POST">
+            <input type="text" name="device-name" id="device-name" placeholder="Device Name" required>
+            <br>
+            <button type="submit">Add Device</button>
+        </form>
+    </div>
+
   </body>
-  
   <script>
     let username;
     let userCity = "National City";
     let userState = "CA";
     let userCountry = "US";
-    let APIkey = "d1558b3b04f23e7b02160135fd44853a";
-
+    let APIkey = "d1558b3b04f23e7b02160135fd44853a"; //Change This ----------------------------------------------
+    let conditions;
     window.onload = async function () {
         await fetchUserDetails();
         getWeatherInfo();
         document.getElementById('welcome-message').textContent = `Welcome, {username}!`;
+        response = await fetch('/getclothes/' + username, {
+            method: 'GET',
+        });
+        data = await response.json();
     };
       
-    const maxDataPoints = 50;
+    const maxDataPoints = 500;
     const ctx = document.getElementById('stockChart').getContext('2d');
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
             datasets: [
-                { label: 'TECH', data: [], borderColor: '#2196f3', tension: 0.4 },
-                { label: 'ENERGY', data: [], borderColor: '#f44336', tension: 0.4 },
-                { label: 'HEALTH', data: [], borderColor: '#4caf50', tension: 0.4 },
-                { label: 'FINANCE', data: [], borderColor: '#ff9800', tension: 0.4 }
+                { label: 'Temperature', data: [], borderColor: '#f44336', tension: 0.4 }
             ]
         },
         options: {
@@ -195,7 +248,7 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: { position: 'top' },
-                title: { display: true, text: 'Stock Prices Over Time' }
+                title: { display: true, text: 'Temperature Over Time' }
             },
             scales: { y: { beginAtZero: false } }
         }
@@ -203,12 +256,18 @@
 
     const ws = new WebSocket('/ws');
     let previousPrices = {};
+    ws.onopen = () => {
+        string = document.cookie
+        ws.send(string);
+    };
+
     ws.onmessage = (event) => {
         data = JSON.parse(event.data);
         updateChartData(data);
         updatePriceCards(data, previousPrices);
         previousPrices = { ...data.stocks };
     };
+
     ws.onclose = () => console.log("Connection Closed");
     ws.onerror = (error) => console.error("WebSocket error:", error);
 
@@ -229,7 +288,7 @@
             //userCity = weatherData.city;
             //userState = weatherData.state;
             //userCountry = weatherData.country;
-            console.log(username, userCity, userState, userCountry);
+            return weatherData;
         } catch (error) {
             console.error('Error fetching user details:', error);
         }
@@ -250,9 +309,31 @@
             console.log(lat, lon);
             fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${APIkey}`)
             .then(response => response.json())
-            .then(data => {console.log(data)});
+            .then(data => {
+                console.log(data)
+                document.getElementById('locations').textContent = data.name;
+                document.getElementById('date').textContent = new Date().toDateString();
+                document.getElementById('conditions').textContent = data.weather[0].main;
+                document.getElementById('temp').textContent = `${data.main.temp}°F`;
+                document.getElementById('humidity').textContent = `${data.main.humidity}%`;
+                document.getElementById('rain').textContent = data.rain ? 'Raining' : 'No Rain';
+                document.getElementById('wind').textContent = `${data.wind.speed} km/h`;
+                conditions = `In ${data.name} it is currently ${data.weather[0].main} with a temperature of ${data.main.temp}°F, humidity of ${data.main.humidity}%, and wind speed of ${data.wind.speed} km/h. What Clothes Should I Wear?`;
+            });
         });
     }
+
+    async function apiClothes() {
+        console.log(conditions);
+        response = await fetch('/LLM', {
+            method: 'POST',
+            body: JSON.stringify({"prompt": conditions}),
+        });
+        data = await response.json();
+        console.log(data['result']['response']);
+        answer = marked.parse(data['result']['response']);
+        document.getElementById('airesponse').innerHTML = answer;
+    };
 
     function displayStockCard(stock, price, change) {
         const stockPricesDiv = document.getElementById('stockPrices');
@@ -277,5 +358,29 @@
             displayStockCard(stock, price, change);
         });
     }
+
+    document.getElementById('addclothes').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const clothesName = document.getElementById('clothes-name').value;
+        try {
+            const response = await fetch('/addclothes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ 'clothes-name': clothesName })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add clothes');
+            }
+
+            const data = await response.json();
+            updateClothesList(data.clothes);
+            document.getElementById('clothes-name').value = '';
+        } catch (error) {
+            console.error('Error adding clothes:', error);
+        }
+    });
   </script>
 </html>

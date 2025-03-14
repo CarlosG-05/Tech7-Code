@@ -8,3 +8,5 @@ matplotlib
 numpy
 uvicorn[standard]
 websockets
+requests
+httpx

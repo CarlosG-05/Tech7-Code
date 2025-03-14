@@ -6,7 +6,9 @@ from collections import deque
 import numpy as np
 
 # MQTT Broker settings
-BROKER = "broker.hivemq.com"
+#BROKER = "broker.hivemq.com"
+BROKER = "broker.emqx.io"
+#BROKER = "test.mosca.io"
 PORT = 1883
 #BASE_TOPIC = "carlos/ece140/sensors"
 BASE_TOPIC = "allsensors"
