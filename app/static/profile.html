@@ -221,16 +221,20 @@
     let userCity = "National City";
     let userState = "CA";
     let userCountry = "US";
-    let APIkey = "d1558b3b04f23e7b02160135fd44853a"; //Change This ----------------------------------------------
+    let APIkey; //Change This ----------------------------------------------
     let conditions;
     window.onload = async function () {
         await fetchUserDetails();
-        getWeatherInfo();
-        document.getElementById('welcome-message').textContent = `Welcome, {username}!`;
-        response = await fetch('/getclothes/' + username, {
+        response = await fetch('/APIKEY', {
             method: 'GET',
         });
         data = await response.json();
+        APIkey = data.APIKEY;
+        console.log("hi");
+        console.log(APIkey);
+        getWeatherInfo();
+        document.getElementById('welcome-message').textContent = `Welcome, {username}!`;
+       
     };
       
     const maxDataPoints = 500;

@@ -7,6 +7,8 @@ import json
 import asyncio
 from typing import Dict
 import random
+from dotenv import load_dotenv
+import os
 from datetime import datetime
 from contextlib import asynccontextmanager
 import httpx
@@ -27,6 +29,10 @@ from database import (
     add_clothes,
     get_all_clothes_by_user
 )
+
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 
 # TODO: 1. create your own user
 INIT_USERS = [
@@ -345,6 +351,11 @@ async def clothes(request: Request):
     await add_clothes(clothes, owner)
 
     return RedirectResponse("/wardrobe", status_code=302)
+
+@app.get("/APIKEY")
+async def get_api_key():
+    print(API_KEY)
+    return {"API_KEY": API_KEY}
 
 stocks = {
     "Temperature": 75.0,

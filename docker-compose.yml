@@ -25,3 +25,4 @@ services:
       - MYSQL_USER=user
       - MYSQL_PASSWORD=password
       - MYSQL_DATABASE=lab_8
+      - API_KEY=d1558b3b04f23e7b02160135fd44853a
