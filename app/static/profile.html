@@ -309,7 +309,7 @@
         let formatedState = userState.replace("/ /g", "%20");
         let formatedCountry = userCountry.replace("/ /g", "%20");
 
-        fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${formatedCity},${formatedState},${formatedCountry}&limit=10&appid=${APIkey}`)
+        fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${formatedCity},${formatedState},${formatedCountry}&limit=10&appid=${APIkey}`)
         .then(response => response.json())
         .then(data => {
             let lat = data[0].lat;
