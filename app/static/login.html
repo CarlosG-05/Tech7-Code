@@ -35,9 +35,14 @@
             animation: fadeIn 1s forwards;
         }
 
+        h1 {
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
         h2 {
             margin-bottom: 20px;
-            font-size: 2rem;
+            font-size: 1.5rem;
         }
 
         .form-group {
@@ -102,6 +107,21 @@
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
         }
 
+        .signup-link {
+            margin-top: 20px;
+            font-size: 1rem;
+        }
+
+        .signup-link a {
+            color: #ffeb3b;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .signup-link a:hover {
+            color: white;
+        }
+
         @keyframes fadeIn {
             to {
                 opacity: 1;
@@ -114,6 +134,7 @@
 <body>
     
     <div class="login-container">
+        <h1>Smart AI Wardrobe</h1>
         <h2>Login</h2>
         <form action="/login" method="POST">
             <div class="form-group">
@@ -126,6 +147,9 @@
             </div>
             <button type="submit">Login</button>
         </form>
+        <div class="signup-link">
+            Don't have an account? <a href="/signup">Sign Up</a>
+        </div>
     </div>
 
 </body>

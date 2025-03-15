@@ -40,8 +40,8 @@
           background: #ff7777;
       }
 
-      /* Weather Section */
-      #weatherapi {
+      /* Wardrobe Section */
+      .form-container {
           background: #3b3f54;
           padding: 20px;
           border-radius: 10px;
@@ -50,85 +50,14 @@
           text-align: center;
           box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
       }
-      .weather-cards {
-          display: flex;
-          justify-content: center;
-          gap: 15px;
-          margin-top: 15px;
-      }
-      .card {
-          background: #282a36;
-          padding: 15px;
-          border-radius: 10px;
-          width: 150px;
-          text-align: center;
-          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-          transition: 0.3s;
-      }
-      .card:hover {
-          transform: translateY(-5px);
-      }
-
-      /* Stock Section */
-      .container {
-          background: #3b3f54;
-          padding: 20px;
-          border-radius: 10px;
-          width: 80%;
-          margin: 20px auto;
-          text-align: center;
-          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-      }
-      .chart-container {
-          width: 100%;
-          max-width: 800px;
-          height: 400px;
-          margin: auto;
-      }
-      .stock-prices {
-          display: flex;
-          justify-content: center;
-          flex-wrap: wrap;
-          gap: 10px;
-          margin-top: 20px;
-      }
-      .stock-card {
-          background: #282a36;
-          padding: 10px 15px;
-          border-radius: 8px;
-          text-align: center;
-          min-width: 120px;
-          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-      }
-      .stock-price {
-          font-size: 18px;
-          font-weight: bold;
-      }
-      .positive {
-          color: #00ff00;
-      }
-      .negative {
-          color: #ff5555;
-      }
-
-        /* Add Device Section */
-        .form-container {
-          background: #3b3f54;
-          padding: 20px;
-          border-radius: 10px;
-          width: 80%;
-          margin: 20px auto;
-          text-align: center;
-          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-        }
-        .form-container input[type="text"] {
+      .form-container input[type="text"] {
           width: 80%;
           padding: 10px;
           margin: 10px 0;
           border: none;
           border-radius: 5px;
-        }
-        .form-container button {
+      }
+      .form-container button {
           background: #4caf50;
           color: white;
           border: none;
@@ -137,10 +66,42 @@
           cursor: pointer;
           border-radius: 5px;
           transition: 0.3s;
-        }
-        .form-container button:hover {
+      }
+      .form-container button:hover {
           background: #66bb6a;
-        }
+      }
+
+      /* Clothes List Styling */
+      #clothes {
+          list-style-type: none;
+          padding: 0;
+      }
+      .clothes-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: #282a36;
+          padding: 10px;
+          margin: 10px 0;
+          border-radius: 5px;
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      }
+      .clothes-item span {
+          flex-grow: 1;
+      }
+      .clothes-item button {
+          background: #ff5555;
+          color: white;
+          border: none;
+          padding: 5px 10px;
+          font-size: 14px;
+          cursor: pointer;
+          border-radius: 5px;
+          transition: 0.3s;
+      }
+      .clothes-item button:hover {
+          background: #ff7777;
+      }
     </style>
   </head>
   <body>
@@ -172,6 +133,7 @@
         await fetchUserDetails();
         document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
         console.log(username);
+        fetchWardrobe();
     };
 
     async function fetchUserDetails() {
@@ -191,6 +153,51 @@
             return userDetails;
         } catch (error) {
             console.error('Error fetching user details:', error);
+        }
+    }
+  
+    async function fetchWardrobe() {
+        try {
+            const response = await fetch('/getclothes/' + username, {
+                method: 'GET',
+                //credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch wardrobe');
+            }
+
+            const wardrobe = await response.json();
+            wardrobe.forEach((clothes) => {
+                const clothesList = document.getElementById('clothes');
+                const clothesItem = document.createElement('li');
+                clothesItem.className = 'clothes-item';
+                const clothesText = document.createElement('span');
+                clothesText.textContent = clothes['clothes'];
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = async function() {
+                    try {
+                        const response = await fetch('/deleteclothes/' + clothes['id'], {
+                            method: 'DELETE'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to delete clothes');
+                        }
+                        clothesList.removeChild(clothesItem);
+                    } catch (error) {
+                        console.error('Error deleting clothes:', error);
+                    }
+                };
+                clothesItem.appendChild(clothesText);
+                clothesItem.appendChild(deleteButton);
+                clothesList.appendChild(clothesItem);
+            });
+            console.log('Wardrobe', wardrobe);
+            return wardrobe;
+        } catch (error) {
+            console.error('Error fetching wardrobe:', error);
         }
     }
   </script>

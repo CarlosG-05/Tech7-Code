@@ -27,12 +27,14 @@ from database import (
     get_user_by_session,
     get_devices_by_owner,
     add_clothes,
-    get_all_clothes_by_user
+    get_all_clothes_by_user,
+    delete_clothes
 )
 
 load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
+API_UNSPLASH = os.getenv("API_UNSPLASH")
 
 # TODO: 1. create your own user
 INIT_USERS = [
@@ -225,7 +227,41 @@ async def user_data(request: Request):
 @app.get("/wardrobe", response_class=HTMLResponse)
 async def wardrobe_page(request: Request):
     """Show wardrobe page"""
-    return read_html("./static/wardrobe.html")
+
+    print("here2")
+
+    session_id = request.cookies.get("sessionId")
+
+    print("here")
+
+    # Check if sessionId exists and is valid
+    if not session_id:
+        return RedirectResponse("/login")
+    
+    session = await get_session(session_id)
+
+    if not session:
+        return RedirectResponse("/login")
+    
+    user = await get_user_by_id(session["user_id"])
+
+    print(user["username"])
+
+    # Check if session username matches URL username
+    if not user['username']:
+        delete_session(session_id)
+        return HTMLResponse(get_error_html(user['username']), status_code=403)
+
+    # If all valid, show profile page
+    return HTMLResponse(read_html("./static/wardrobe.html"))
+
+@app.delete("/deleteclothes/{id}")
+async def delete(request: Request, id: int):
+    """Delete a clothes from the database"""
+
+    await delete_clothes(id)
+
+    return {"status": "success"}
 
 @app.get("/user/details")
 async def get_user_details(request: Request):
@@ -322,6 +358,8 @@ async def getClothes(username: str):
 
     clothes = await get_all_clothes_by_user(username)
 
+    print(clothes)
+
     return clothes
 
 @app.post("/addclothes")
@@ -352,10 +390,12 @@ async def clothes(request: Request):
 
     return RedirectResponse("/wardrobe", status_code=302)
 
-@app.get("/APIKEY")
-async def get_api_key():
-    print(API_KEY)
-    return {"API_KEY": API_KEY}
+@app.get("/APIKEY/{id}")
+async def get_api_key(id: int):
+    if id == 1:
+        return {"API_KEY": API_KEY}
+    if id == 2:
+        return {"API_UNSPLASH": API_UNSPLASH}
 
 stocks = {
     "Temperature": 75.0,
@@ -369,7 +409,7 @@ async def get_new_stock_prices(device_name:str):
     print(temp)
 
     stocks = {
-            "ENERGY": temp
+            "TEMP": temp
         }
 
     data = {

@@ -114,8 +114,8 @@ async def setup_database(initial_users: dict = None):
         "clothes": """
             CREATE TABLE clothes (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                clothes VARCHAR(255) NOT NULL,
                 user VARCHAR(255) NOT NULL,
-                type VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
@@ -398,7 +398,7 @@ async def get_user_by_session(session_id: str) -> Optional[dict]:
         if connection and connection.is_connected():
             connection.close()
 
-async def add_clothes(user: str, type: str):
+async def add_clothes(clothes: str, user: str):
     """Add a new clothes to the database."""
     connection = None
     cursor = None
@@ -409,10 +409,10 @@ async def add_clothes(user: str, type: str):
         cursor = connection.cursor()
 
         # Insert New Clothes
-        insert_query = "INSERT INTO clothes (user, type) VALUES (%s, %s)"
-        cursor.execute(insert_query, (user, type))
+        insert_query = "INSERT INTO clothes (clothes, user) VALUES (%s, %s)"
+        cursor.execute(insert_query, (clothes, user))
         connection.commit()
-        logger.info(f"Inserted {type} clothes")
+        logger.info(f"Inserted {clothes} clothes")
     except Error as e:
         logger.error(f"Error inserting clothes: {e}")
         raise
@@ -431,17 +431,33 @@ async def get_all_clothes_by_user(user: str):
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         cursor.execute("""
-            SELECT type FROM clothes 
+            SELECT * FROM clothes 
             WHERE user = %s 
         """, (user,))
         result = cursor.fetchall()
-        return [row['type'] for row in result]
+        return result
     finally:
         if cursor:
             cursor.close()
         if connection and connection.is_connected():
             connection.close()
-            
+
+async def delete_clothes(clothes_id: int) -> bool:
+    """Delete clothes from the database."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM clothes WHERE id = %s", (clothes_id,))
+        connection.commit()
+        return True
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+
 async def delete_session(session_id: str) -> bool:
     """Delete a session from the database."""
     connection = None

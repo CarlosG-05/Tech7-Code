@@ -22,7 +22,7 @@
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: #282a36;
+          background: rgba(40, 42, 54, 0.4); /* Updated to be more transparent */
           padding: 15px 20px;
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       }
@@ -42,7 +42,7 @@
 
       /* Weather Section */
       #weatherapi {
-          background: #3b3f54;
+          background: rgba(59, 63, 84, 0.4); /* Updated to be more transparent */
           padding: 20px;
           border-radius: 10px;
           width: 80%;
@@ -57,7 +57,7 @@
           margin-top: 15px;
       }
       .card {
-          background: #282a36;
+          background: rgba(40, 42, 54, 0.4); /* Updated to be more transparent */
           padding: 15px;
           border-radius: 10px;
           width: 150px;
@@ -71,7 +71,7 @@
 
       /* Stock Section */
       .container {
-          background: #3b3f54;
+          background: rgba(59, 63, 84, 0.4); /* Updated to be more transparent */
           padding: 20px;
           border-radius: 10px;
           width: 80%;
@@ -93,7 +93,7 @@
           margin-top: 20px;
       }
       .stock-card {
-          background: #282a36;
+          background: rgba(40, 42, 54, 0.4); /* Updated to be more transparent */
           padding: 10px 15px;
           border-radius: 8px;
           text-align: center;
@@ -113,13 +113,13 @@
 
         /* Add Device Section */
         .form-container {
-          background: #3b3f54;
+          background: rgba(59, 63, 84, 0.4); /* Updated to be more transparent */
           padding: 20px;
           border-radius: 10px;
           width: 80%;
           margin: 20px auto;
           text-align: center;
-          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         }
         .form-container input[type="text"] {
           width: 80%;
@@ -221,20 +221,24 @@
     let userCity = "National City";
     let userState = "CA";
     let userCountry = "US";
-    let APIkey; //Change This ----------------------------------------------
+    let APIkey;
+    let API_UNSPLASH;
     let conditions;
+    let currentConditions;
     window.onload = async function () {
         await fetchUserDetails();
-        response = await fetch('/APIKEY', {
+        response = await fetch('/APIKEY/1', {
             method: 'GET',
         });
         data = await response.json();
-        APIkey = data.APIKEY;
-        console.log("hi");
-        console.log(APIkey);
+        APIkey = data['API_KEY'];
+        response2 = await fetch('/APIKEY/2', {
+            method: 'GET',
+        });
+        data2 = await response2.json();
+        API_UNSPLASH = data2['API_UNSPLASH'];
         getWeatherInfo();
         document.getElementById('welcome-message').textContent = `Welcome, {username}!`;
-       
     };
       
     const maxDataPoints = 500;
@@ -289,9 +293,9 @@
             const weatherData = await response.json();
             console.log('User Details', weatherData);
             username = weatherData.username;
-            //userCity = weatherData.city;
-            //userState = weatherData.state;
-            //userCountry = weatherData.country;
+            userCity = weatherData.city;
+            userState = weatherData.state;
+            userCountry = weatherData.country;
             return weatherData;
         } catch (error) {
             console.error('Error fetching user details:', error);
@@ -323,6 +327,8 @@
                 document.getElementById('rain').textContent = data.rain ? 'Raining' : 'No Rain';
                 document.getElementById('wind').textContent = `${data.wind.speed} km/h`;
                 conditions = `In ${data.name} it is currently ${data.weather[0].main} with a temperature of ${data.main.temp}°F, humidity of ${data.main.humidity}%, and wind speed of ${data.wind.speed} km/h. What Clothes Should I Wear?`;
+                currentConditions = data.weather[0].main;
+                getPhoto();
             });
         });
     }
@@ -339,11 +345,28 @@
         document.getElementById('airesponse').innerHTML = answer;
     };
 
+    async function getPhoto() {
+        response = await fetch(`https://api.unsplash.com/search/photos/?query=${currentConditions}&client_id=hVmhk_zDOId3MQMu7gXYqU2h6HJL2RaUZ6PIEGq9FLI`, {
+            method: 'GET',
+        })
+        .then(response => response.json())
+        .then(data => (data.results))
+        .then(results => {
+            console.log(results);
+            let random = Math.floor(Math.random() * results.length);
+            console.log(results[random].urls.regular);
+            document.body.style.backgroundImage = `url(${results[random].urls.regular})`;
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundRepeat = 'no-repeat';
+            document.body.style.backgroundPosition = 'center';
+        });
+    }
+
     function displayStockCard(stock, price, change) {
         const stockPricesDiv = document.getElementById('stockPrices');
         const card = document.createElement('div');
         card.className = 'stock-card';
-        card.innerHTML = `<div>${stock}</div><div class="stock-price">$${price.toFixed(2)}</div>
+        card.innerHTML = `<div>${stock}</div><div class="stock-price">${price.toFixed(1)} C</div>
             <div class="${change >= 0 ? 'positive' : 'negative'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}%</div>`;
         stockPricesDiv.appendChild(card);
     }

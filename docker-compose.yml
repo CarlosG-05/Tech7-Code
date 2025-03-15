@@ -26,3 +26,4 @@ services:
       - MYSQL_PASSWORD=password
       - MYSQL_DATABASE=lab_8
       - API_KEY=d1558b3b04f23e7b02160135fd44853a
+      - API_UNSPLASH=v4Tu1NKAVusR0CHlS0KL5XSmxXr4PcsjMbUQ1yDtDEY
